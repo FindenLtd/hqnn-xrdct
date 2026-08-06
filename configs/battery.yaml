@@ -1,0 +1,53 @@
+seed: 13013
+phases: [LCO, Graphite, Al, Cu]
+library_keys: [Patterns_LCO, Patterns_C, Patterns_Al, Patterns_Cu]
+lpa_keys: [Phase_0_lpa, Phase_1_lpa, Phase_2_lpa, Phase_3_lpa]
+lpc_keys: [Phase_0_lpc, Phase_1_lpc, null, null]
+fixed_sf: [7.0e-10, 8.0e-9, 1.0e-9, 4.0e-10]
+unit_cell_mass: [293.619, 96.086, 107.926, 254.184]
+
+dataset:
+  samples: 200000
+  target_bins: 64
+  split: [0.80, 0.10, 0.10]
+  phase_count_probability: [0.03, 0.62, 0.30, 0.05]
+  phase_selection_probability: [0.25, 0.25, 0.25, 0.25]
+  anchor_coefficient: [0.10, 1.00]
+  strong_coefficient: [0.02, 1.00]
+  ghost_coefficient: [0.00, 0.02]
+  strong_nonanchor_probability: 0.75
+  photon_counts: [3000, 20000]
+  gaussian_fraction: [0.0005, 0.003]
+
+model:
+  qubits: 6
+  repetitions: 2
+  observables: [Z, X, Y]
+  entanglement: ring
+  qnn_features: 18
+  qnn_parameters: 36
+  hidden: 64
+  branch_hidden: [64, 64, 32]
+  pattern_max_scale: 1.0
+
+training:
+  batch_size: 32
+  joint_epochs: 10
+  head_epochs: 10
+  qnn_learning_rate: 1.0e-4
+  head_learning_rate: 1.0e-3
+  parameter_shift_workers: 6
+  loss: mse
+  gate_noise_p1q: 5.0e-4
+  gate_noise_p2q: 5.0e-3
+  effective_shots: 2048
+
+hardware:
+  backend: ibm_pittsburgh
+  replicas: 18
+  measurement_bases: [Z, X, Y]
+  patterns_per_group: 1024
+  compile_workers: 6
+  submit_workers: 4
+  batch_max_time: 8h
+

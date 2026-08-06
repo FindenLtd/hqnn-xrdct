@@ -1,0 +1,15 @@
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+outputs/
+data/
+*.pt
+*.pth
+*.qpy
+*.npz
+*.h5
+*.hdf5
+*.env
+credentials*
+
