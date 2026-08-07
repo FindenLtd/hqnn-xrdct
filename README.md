@@ -1,4 +1,4 @@
-# Hybrid QNN for Quantitative X-ray Diffraction Data
+# Hybrid QNN for Quantitative Analysis of X-ray Diffraction Data
 
 This repository contains the battery XRD-CT workflow used to train and deploy a hybrid quantum-classical neural network (HQNN). The model predicts phase weight fractions and scale factors from diffraction patterns.
 
