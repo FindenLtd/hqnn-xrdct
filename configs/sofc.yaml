@@ -1,0 +1,50 @@
+seed: 13013
+phases: [LSM, YSZ, NiO]
+library_keys: [Patterns_LSM, Patterns_YSZ, Patterns_NiO]
+sf_keys: [Phase_0_sf, Phase_1_sf, Phase_2_sf]
+lpa_keys: [Phase_0_lpa, Phase_1_lpa, Phase_2_lpa]
+lpc_keys: [Phase_0_lpc, Phase_1_lpc, null]
+volume_systems: [hexagonal, tetragonal, cubic]
+fixed_sf: [1.0e-11, 4.0e-10, 3.0e-10]
+unit_cell_mass: [1389.500514, 245.8123014, 298.7696]
+invalid_sf_threshold: 1.0e-18
+
+dataset:
+  samples: 200000
+  target_bins: 64
+  split: [0.80, 0.10, 0.10]
+  phase_count_probability: [0.15, 0.70, 0.15]
+  phase_selection_probability: [0.3333333333333333, 0.3333333333333333, 0.3333333333333334]
+  anchor_coefficient: [0.10, 1.00]
+  strong_coefficient: [0.02, 1.00]
+  ghost_coefficient: [0.00, 0.02]
+  strong_nonanchor_probability: 0.75
+  photon_counts: [3000, 20000]
+  gaussian_fraction: [0.0005, 0.003]
+
+model:
+  qubits: 6
+  repetitions: 2
+  observables: [Z, X, Y]
+  entanglement: ring
+  qnn_features: 18
+  qnn_parameters: 36
+  hidden: 64
+  branch_hidden: [64, 64, 32]
+  pattern_max_scale: 1.0
+
+preprocessing:
+  method: interpolate
+  roi: [33, 327]
+
+training:
+  batch_size: 32
+  joint_epochs: 10
+  head_epochs: 10
+  qnn_learning_rate: 1.0e-4
+  head_learning_rate: 1.0e-3
+  parameter_shift_workers: 6
+  loss: mse
+  gate_noise_p1q: 5.0e-4
+  gate_noise_p2q: 5.0e-3
+  effective_shots: 2048

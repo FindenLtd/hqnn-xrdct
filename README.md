@@ -40,6 +40,18 @@ python scripts/01_generate_battery_dataset.py --library PATH_TO_LIBRARY.h5
 python scripts/01_pretrain_battery_dual_head.py --dataset data/battery_200k.h5
 ```
 
+The reproducibility package also contains `data/battery_200k.h5` and
+`data/sofc_200k.h5`. These Git LFS files contain the exact 200,000-mixture
+corpora used by the code, including raw and 64-bin patterns, mixture
+coefficients, physical weight fractions, physical and normalized effective
+scale factors, source rows,
+and deterministic train/validation/test assignments. Run `git lfs pull` after
+cloning to download them. The SOFC file can be regenerated with:
+
+```powershell
+python scripts/01_generate_sofc_dataset.py --library PATH_TO_SOFC_LIBRARY.h5
+```
+
 Prepare data and execute the frozen QNN on IBM hardware:
 
 ```powershell

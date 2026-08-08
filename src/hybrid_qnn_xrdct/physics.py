@@ -3,13 +3,25 @@ from __future__ import annotations
 import numpy as np
 
 
-def unit_cell_volume(phase_index: int, lpa: float, lpc: float | None) -> float:
+def unit_cell_volume(
+    phase_index: int,
+    lpa: float,
+    lpc: float | None,
+    crystal_system: str | None = None,
+) -> float:
     """Unit-cell volume used by the Rietveld weight conversion."""
-    if phase_index in (0, 1):
+    system = crystal_system or ("hexagonal" if phase_index in (0, 1) else "cubic")
+    if system in ("hexagonal", "trigonal"):
         if lpc is None or not np.isfinite(lpc):
-            raise ValueError("Hexagonal phases require a finite c lattice parameter")
+            raise ValueError(f"{system} phases require a finite c lattice parameter")
         return float(lpa) ** 2 * float(lpc) * np.sin(np.deg2rad(120.0))
-    return float(lpa) ** 3
+    if system == "tetragonal":
+        if lpc is None or not np.isfinite(lpc):
+            raise ValueError("Tetragonal phases require a finite c lattice parameter")
+        return float(lpa) ** 2 * float(lpc)
+    if system == "cubic":
+        return float(lpa) ** 3
+    raise ValueError(f"Unsupported crystal system: {system}")
 
 
 def effective_sf(coefficients: np.ndarray, fixed_sf: np.ndarray) -> np.ndarray:
@@ -35,4 +47,3 @@ def scale_factors_to_weight_fraction(
     if np.any(total <= 0):
         raise ValueError("At least one effective phase scale factor must be positive")
     return relative / total
-

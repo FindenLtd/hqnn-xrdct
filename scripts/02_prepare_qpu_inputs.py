@@ -27,6 +27,7 @@ def main() -> None:
                 patterns=np.asarray(source["encoded_patterns"][indices], dtype=np.float64),
                 pattern_max=np.asarray(source["pattern_max"][indices], dtype=np.float64),
                 weight_fractions=np.asarray(source["weight_fractions"][indices], dtype=np.float64),
+                normalized_scale_factors=np.asarray(source["normalized_scale_factors"][indices], dtype=np.float64),
                 effective_scale_factors=np.asarray(source["effective_scale_factors"][indices], dtype=np.float64),
                 source_indices=indices,
             )
@@ -50,4 +51,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-

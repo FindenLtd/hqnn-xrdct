@@ -47,7 +47,7 @@ def main() -> None:
     source = np.load(args.inputs); features = load_features(Path(args.features))
     count = min(len(features), len(source["pattern_max"]))
     features = features[:count]; maximum = source["pattern_max"][:count]
-    wt, sf = source["weight_fractions"][:count], source["effective_scale_factors"][:count]
+    wt, sf = source["weight_fractions"][:count], source["normalized_scale_factors"][:count]
     train_end, validation_end = int(0.8 * count), int(0.9 * count)
     model = build_model(config, args.checkpoint)
     model.pmn.fit(torch.tensor(features[:train_end], dtype=torch.float64))
@@ -82,4 +82,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-

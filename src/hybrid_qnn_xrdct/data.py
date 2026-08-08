@@ -13,15 +13,14 @@ from .preprocessing import l2_normalize, maxpool_1d
 @dataclass
 class PhasePool:
     patterns: np.ndarray
+    sf: np.ndarray
     lpa: np.ndarray
     lpc: np.ndarray
+    valid: np.ndarray
 
 
-def _valid_indices(pool: PhasePool, phase_index: int) -> np.ndarray:
-    valid = np.isfinite(pool.lpa) & (np.max(pool.patterns, axis=1) > 1e-12)
-    if phase_index in (0, 1):
-        valid &= np.isfinite(pool.lpc)
-    return np.flatnonzero(valid)
+def _valid_indices(pool: PhasePool) -> np.ndarray:
+    return pool.valid
 
 
 def load_library(path: str | Path, config: dict) -> tuple[np.ndarray, list[PhasePool]]:
@@ -29,7 +28,10 @@ def load_library(path: str | Path, config: dict) -> tuple[np.ndarray, list[Phase
     with h5py.File(path, "r") as source:
         tth = np.asarray(source["twotheta"], dtype=np.float64)
         for index, pattern_key in enumerate(config["library_keys"]):
-            patterns = np.asarray(source[pattern_key], dtype=np.float64)
+            # float32 halves the memory required by the large single-phase library
+            # without changing the float64 labels or encoded model inputs.
+            patterns = np.asarray(source[pattern_key], dtype=np.float32)
+            sf = np.asarray(source[config["sf_keys"][index]], dtype=np.float64)
             lpa = np.asarray(source[config["lpa_keys"][index]], dtype=np.float64)
             lpc_key = config["lpc_keys"][index]
             lpc = (
@@ -37,8 +39,16 @@ def load_library(path: str | Path, config: dict) -> tuple[np.ndarray, list[Phase
                 if lpc_key
                 else np.full_like(lpa, np.nan)
             )
-            pool = PhasePool(patterns=patterns, lpa=lpa, lpc=lpc)
-            valid = _valid_indices(pool, index)
+            valid_mask = (
+                np.isfinite(sf)
+                & (sf > float(config.get("invalid_sf_threshold", 1e-18)))
+                & np.isfinite(lpa)
+                & (np.max(patterns, axis=1) > 1e-12)
+            )
+            if config["volume_systems"][index] != "cubic":
+                valid_mask &= np.isfinite(lpc)
+            valid = np.flatnonzero(valid_mask)
+            pool = PhasePool(patterns=patterns, sf=sf, lpa=lpa, lpc=lpc, valid=valid)
             if valid.size == 0:
                 raise ValueError(f"No valid rows for {config['phases'][index]}")
             pools.append(pool)
@@ -90,12 +100,17 @@ def sample_mixture(pools: list[PhasePool], rng: np.random.Generator, config: dic
     for phase, coefficient in enumerate(coefficients):
         if coefficient <= 0:
             continue
-        valid = _valid_indices(pools[phase], phase)
+        valid = _valid_indices(pools[phase])
         row = int(rng.choice(valid))
         source_rows[phase] = row
         pattern += coefficient * pools[phase].patterns[row]
-        lpc = None if phase not in (0, 1) else float(pools[phase].lpc[row])
-        volumes[phase] = unit_cell_volume(phase, float(pools[phase].lpa[row]), lpc)
+        lpc = None if config["volume_systems"][phase] == "cubic" else float(pools[phase].lpc[row])
+        volumes[phase] = unit_cell_volume(
+            phase,
+            float(pools[phase].lpa[row]),
+            lpc,
+            crystal_system=config["volume_systems"][phase],
+        )
 
     sf = effective_sf(coefficients, fixed_sf)
     wt = scale_factors_to_weight_fraction(sf, volumes, mass)
@@ -116,12 +131,32 @@ def generate_dataset(library_path: str | Path, output_path: str | Path, config: 
     volumes = np.empty_like(coefficients)
     source_rows = np.empty((count, len(pools)), dtype=np.int64)
 
+    preprocessing = config.get("preprocessing", {})
+    roi = preprocessing.get("roi", [0, int(tth.size)])
+    roi_start, roi_stop = int(roi[0]), int(roi[1])
+    method = preprocessing.get("method", "maxpool")
+    if not (0 <= roi_start < roi_stop <= tth.size):
+        raise ValueError(f"Invalid ROI {roi} for {tth.size} diffraction bins")
+
     for row in range(count):
         pattern, coeff, sf, wt, vol, rows = sample_mixture(pools, rng, config)
         raw[row] = pattern
         pattern_max[row, 0] = float(pattern.max()) * float(config["model"]["pattern_max_scale"])
         noisy = add_measurement_noise(pattern, rng, config)
-        encoded[row] = l2_normalize(maxpool_1d(noisy, bins))
+        segment = noisy[roi_start:roi_stop]
+        if method == "maxpool":
+            reduced = maxpool_1d(segment, bins)
+        elif method == "interpolate":
+            reduced = np.interp(
+                np.linspace(0.0, segment.size - 1.0, bins),
+                np.arange(segment.size, dtype=np.float64),
+                segment,
+            )
+        else:
+            raise ValueError(f"Unsupported preprocessing method: {method}")
+        encoded[row] = l2_normalize(reduced)
+        if (row + 1) % 10000 == 0 or row + 1 == count:
+            print(f"generated {row + 1}/{count}", flush=True)
         coefficients[row], scale_factors[row], weights[row] = coeff, sf, wt
         volumes[row], source_rows[row] = vol, rows
 
@@ -140,12 +175,19 @@ def generate_dataset(library_path: str | Path, output_path: str | Path, config: 
         target.create_dataset("pattern_max", data=pattern_max)
         target.create_dataset("mix_coefficients", data=coefficients)
         target.create_dataset("effective_scale_factors", data=scale_factors)
+        target.create_dataset("normalized_scale_factors", data=coefficients)
         target.create_dataset("weight_fractions", data=weights)
         target.create_dataset("unit_cell_volumes", data=volumes)
         target.create_dataset("source_rows", data=source_rows)
         target.create_dataset("split", data=split)
         target.attrs["phase_order"] = ",".join(config["phases"])
         target.attrs["sampling_domain"] = "scale_coefficient"
+        target.attrs["sf_training_target"] = "normalized_scale_factors=effective_scale_factors/fixed_sf"
+        target.attrs["preprocessing_method"] = method
+        target.attrs["roi_start"] = roi_start
+        target.attrs["roi_stop"] = roi_stop
+        target.attrs["target_bins"] = bins
+        target.attrs["seed"] = int(config["seed"])
     return destination
 
 
@@ -154,6 +196,5 @@ def load_split(path: str | Path, split: int):
         mask = np.asarray(source["split"]) == split
         return tuple(
             np.asarray(source[key][mask], dtype=np.float64)
-            for key in ("encoded_patterns", "pattern_max", "weight_fractions", "effective_scale_factors")
+            for key in ("encoded_patterns", "pattern_max", "weight_fractions", "normalized_scale_factors")
         )
-
