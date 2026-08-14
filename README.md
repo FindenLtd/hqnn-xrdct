@@ -78,6 +78,3 @@ The main settings are in [`configs/battery.yaml`](configs/battery.yaml).
 
 ![Battery scale-factor results](docs/figures/figure8_battery_scale_factor.png)
 
-## License
-
-MIT. See [LICENSE](LICENSE).
