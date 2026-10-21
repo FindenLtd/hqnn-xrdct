@@ -67,3 +67,9 @@ The main settings are in [`configs/battery.yaml`](configs/battery.yaml).
 
 ![Battery scale-factor results](docs/figures/figure8_battery_scale_factor.png)
 
+## Citation
+
+If you use parts of the code, please cite the work using the following:
+
+"A Hybrid Quantum Neural Network to Analyse Big Experimental Powder X-ray Diffraction Data", H. Dong, S. D. M. Jacques, M.Q. Hlatshwayo, E. Papoutsellis, K. Georgopoulos, A. M. Beale, A. Vamvakeros, arXiv, 2026. https://doi.org/10.48550/arXiv.2609.22376
+
